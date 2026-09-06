@@ -19,7 +19,7 @@ jobs:
         run: git config --global core.autocrlf false
       - uses: actions/checkout@v6
         with:
-          ref: aa37537afa789683b2c6684befa992ede7b87499
+          ref: 9b65085d7684ae23c20f2a8fef68fae35e0a0d36
           persist-credentials: false
       - uses: ./.github/actions/install-node-dependencies
         with:
@@ -27,7 +27,7 @@ jobs:
           native-runtime: node
           persist-native-cache: 'false'
       - name: Focused review regressions
-        run: pnpm test kaneo cancellable-provider-requests jira-cancellable-requests worktrees-remote-runtime-create worktree-meta-persist folder-workspace-owner-routed-mutations repos-project-groups
+        run: pnpm test kaneo cancellable-provider-requests jira-cancellable-requests worktrees-remote-runtime-create worktree-meta-persist folder-workspace-owner-routed-mutations repos-project-groups worktree-runtime-owner
       - name: Lint
         run: pnpm lint
       - name: Typecheck
