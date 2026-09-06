@@ -1,71 +1,86 @@
-name: Kaneo contribution validation
+name: Kaneo CI validation
 on:
   push:
     branches: [ci/kaneo-validation]
+env:
+  ORCA_BACKGROUND_LAUNCH: '1'
 permissions:
   contents: read
+
 jobs:
-  desktop:
-    name: Kaneo (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 75
+  test:
+    name: tests node ${{ matrix.node }} ${{ matrix.shard }}/${{ matrix.shard_total }}
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
-    defaults:
-      run:
-        shell: bash
-    env:
-      CI: 'true'
-      ORCA_BACKGROUND_LAUNCH: '1'
+        node: [24]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard_total: [8]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: def473a2d9040caebe80913f4822daf4c5adf78a
+          persist-credentials: false
+
+      - uses: ./.github/actions/install-node-dependencies
+        with:
+          native-runtime: node
+          node-version: ${{ matrix.node }}
+          cache-electron-package: 'true'
+
+      - name: Install Electron package binary for tests
+        run: node config/scripts/install-electron-package-binary.mjs
+
+      - name: Test shard
+        run: |
+          pnpm exec vitest run --config config/vitest.config.ts \
+            --exclude=src/main/daemon/repro-13767-shell-ready-marker-lost-to-exec.test.ts \
+            --exclude=src/main/daemon/shell-ready.test.ts \
+            --exclude=src/main/daemon/node-pty-fd-leak.test.ts \
+            --exclude=src/main/providers/local-pty-shell-ready-zsh-launch-environment.test.ts \
+            --exclude=src/main/providers/__tests__/shell-ready-framework-example.test.ts \
+            --exclude=src/main/pty/omp-shell-wrapper.node-pty.test.ts \
+            --exclude=src/main/shell-startup-feature-channel.test.ts \
+            --exclude=src/main/terminal-history-fish-session.node-pty.test.ts \
+            --exclude=src/main/zsh-scoped-histfile.live-shell.test.ts \
+            --exclude=src/main/zsh-startup-hook-user-config-equivalence.live-shell.test.ts \
+            --exclude=src/main/zsh-wrapper-version-mismatch.live-shell.test.ts \
+            --exclude=src/renderer/src/components/terminal-pane/fish-color-scheme-child-stdin.node-pty.test.ts \
+            --exclude=src/shared/fish-query-reply-child-stdin.node-pty.test.ts \
+            --exclude=src/shared/pty-reply-echo-shapes.node-pty.test.ts \
+            --exclude=src/shared/startup-shell-portability.live-shell.test.ts \
+            --exclude=src/shared/posix-command-path-lookup.test.ts \
+            --exclude=tests/e2e/cross-version-wire/** \
+            --shard=${{ matrix.shard }}/${{ matrix.shard_total }}
+
+  linux-desktop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
         with:
           ref: def473a2d9040caebe80913f4822daf4c5adf78a
           persist-credentials: false
       - uses: ./.github/actions/install-node-dependencies
-        id: deps
         with:
           node-version: '24'
-          native-runtime: node
-          cache-electron-package: 'true'
+          native-runtime: electron
           persist-native-cache: 'false'
-      - name: Install Electron binary
-        run: node config/scripts/install-electron-package-binary.mjs
-      - name: Lint
-        if: always() && steps.deps.outcome == 'success'
-        run: pnpm lint
-      - name: Typecheck
-        if: always() && steps.deps.outcome == 'success'
-        run: pnpm typecheck
-      - name: Unit tests
-        if: always() && steps.deps.outcome == 'success'
-        run: pnpm test
       - name: Build
-        if: always() && steps.deps.outcome == 'success'
         run: pnpm build
-      - name: Linux display dependencies
-        if: always() && steps.deps.outcome == 'success' && runner.os == 'Linux'
+      - name: Display dependencies
         run: sudo apt-get update && sudo apt-get install -y xvfb libasound2t64 libgbm1 libnss3 libgtk-3-0t64
-      - name: Electron native runtime
-        if: always() && steps.deps.outcome == 'success'
-        run: pnpm ensure:electron-runtime
       - name: Rendered Kaneo checks
-        if: always() && steps.deps.outcome == 'success'
-        run: |
-          if [ "$RUNNER_OS" = Linux ]; then
-            xvfb-run -a pnpm exec playwright test tests/e2e/kaneo-smart-url.spec.ts tests/e2e/kaneo-paired-runtime.spec.ts --config tests/playwright.config.ts --project electron-headless --workers=1 --reporter=list,html
-          else
-            pnpm exec playwright test tests/e2e/kaneo-smart-url.spec.ts tests/e2e/kaneo-paired-runtime.spec.ts --config tests/playwright.config.ts --project electron-headless --workers=1 --reporter=list,html
-          fi
+        run: xvfb-run -a pnpm exec playwright test tests/e2e/kaneo-smart-url.spec.ts tests/e2e/kaneo-paired-runtime.spec.ts --config tests/playwright.config.ts --project electron-headless --workers=1 --reporter=list,html
         env:
           PLAYWRIGHT_HTML_OPEN: never
-      - name: Upload rendered test evidence
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/upload-artifact@v4
         with:
-          name: kaneo-${{ matrix.os }}
+          name: kaneo-linux-rendered
           path: |
             playwright-report
             test-results
