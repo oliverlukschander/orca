@@ -1,0 +1,72 @@
+name: Kaneo contribution validation
+on:
+  push:
+    branches: [ci/kaneo-validation]
+permissions:
+  contents: read
+jobs:
+  desktop:
+    name: Kaneo (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    env:
+      CI: 'true'
+      ORCA_BACKGROUND_LAUNCH: '1'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: def473a2d9040caebe80913f4822daf4c5adf78a
+          persist-credentials: false
+      - uses: ./.github/actions/install-node-dependencies
+        id: deps
+        with:
+          node-version: '24'
+          native-runtime: node
+          cache-electron-package: 'true'
+          persist-native-cache: 'false'
+      - name: Install Electron binary
+        run: node config/scripts/install-electron-package-binary.mjs
+      - name: Lint
+        if: always() && steps.deps.outcome == 'success'
+        run: pnpm lint
+      - name: Typecheck
+        if: always() && steps.deps.outcome == 'success'
+        run: pnpm typecheck
+      - name: Unit tests
+        if: always() && steps.deps.outcome == 'success'
+        run: pnpm test
+      - name: Build
+        if: always() && steps.deps.outcome == 'success'
+        run: pnpm build
+      - name: Linux display dependencies
+        if: always() && steps.deps.outcome == 'success' && runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb libasound2t64 libgbm1 libnss3 libgtk-3-0t64
+      - name: Electron native runtime
+        if: always() && steps.deps.outcome == 'success'
+        run: pnpm ensure:electron-runtime
+      - name: Rendered Kaneo checks
+        if: always() && steps.deps.outcome == 'success'
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            xvfb-run -a pnpm exec playwright test tests/e2e/kaneo-smart-url.spec.ts tests/e2e/kaneo-paired-runtime.spec.ts --config tests/playwright.config.ts --project electron-headless --workers=1 --reporter=list,html
+          else
+            pnpm exec playwright test tests/e2e/kaneo-smart-url.spec.ts tests/e2e/kaneo-paired-runtime.spec.ts --config tests/playwright.config.ts --project electron-headless --workers=1 --reporter=list,html
+          fi
+        env:
+          PLAYWRIGHT_HTML_OPEN: never
+      - name: Upload rendered test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kaneo-${{ matrix.os }}
+          path: |
+            playwright-report
+            test-results
+          retention-days: 14
