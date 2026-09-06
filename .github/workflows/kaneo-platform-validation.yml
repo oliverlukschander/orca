@@ -1,22 +1,18 @@
-name: Kaneo SSH and baseline validation
+name: Kaneo Windows LF validation
 on:
   push:
     branches: [ci/kaneo-platform-validation]
 permissions:
   contents: read
 jobs:
-  linux-ssh:
-    runs-on: ubuntu-latest
+  windows-lf:
+    runs-on: windows-latest
     timeout-minutes: 30
-    defaults:
-      run:
-        shell: bash
     env:
       ORCA_BACKGROUND_LAUNCH: '1'
-      ORCA_E2E_SSH_LOCALHOST: '1'
-      ORCA_E2E_SSH_USER: root
-      ORCA_E2E_SSH_PORT: '22222'
     steps:
+      - name: Preserve repository line endings
+        run: git config --global core.autocrlf false
       - uses: actions/checkout@v6
         with:
           ref: def473a2d9040caebe80913f4822daf4c5adf78a
@@ -24,40 +20,9 @@ jobs:
       - uses: ./.github/actions/install-node-dependencies
         with:
           node-version: '24'
-          native-runtime: electron
-          persist-native-cache: 'false'
-      - name: Prepare disposable SSH host and display
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y openssh-server xvfb libasound2t64 libgbm1 libnss3 libgtk-3-0t64
-          ssh-keygen -q -t ed25519 -N '' -f "$RUNNER_TEMP/kaneo-key"
-          sudo mkdir -p /run/sshd
-          sudo ln -sf "$(command -v node)" /usr/local/bin/node
-          cat > "$RUNNER_TEMP/kaneo-sshd.conf" <<EOF
-          Port 22222
-          ListenAddress 127.0.0.1
-          HostKey /etc/ssh/ssh_host_ed25519_key
-          AuthorizedKeysFile $RUNNER_TEMP/kaneo-key.pub
-          PermitRootLogin yes
-          PasswordAuthentication no
-          KbdInteractiveAuthentication no
-          UsePAM yes
-          StrictModes no
-          Subsystem sftp internal-sftp
-          PidFile $RUNNER_TEMP/kaneo-sshd.pid
-          EOF
-          sudo /usr/sbin/sshd -f "$RUNNER_TEMP/kaneo-sshd.conf"
-          ssh -o StrictHostKeyChecking=accept-new -p 22222 -i "$RUNNER_TEMP/kaneo-key" root@127.0.0.1 node --version
-          echo "ORCA_E2E_SSH_IDENTITY_FILE=$RUNNER_TEMP/kaneo-key" >> "$GITHUB_ENV"
-      - name: Rendered SSH worktree check
-        run: xvfb-run -a pnpm exec playwright test tests/e2e/kaneo-ssh-worktree.spec.ts --config tests/playwright.config.ts --project electron-headless --workers=1 --reporter=list,html
-        env:
-          PLAYWRIGHT_HTML_OPEN: never
-      - uses: actions/upload-artifact@v4
+          native-runtime: node
+      - name: Lint with LF checkout
+        run: pnpm lint
+      - name: Kaneo regression tests
         if: always()
-        with:
-          name: kaneo-linux-ssh
-          path: |
-            playwright-report
-            test-results
-          retention-days: 14
+        run: pnpm test kaneo
