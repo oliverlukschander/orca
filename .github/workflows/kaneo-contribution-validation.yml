@@ -22,7 +22,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          ref: def473a2d9040caebe80913f4822daf4c5adf78a
+          ref: 710ebd05714b193fffbdedec0572eb1ec849f4c4
           persist-credentials: false
 
       - uses: ./.github/actions/install-node-dependencies
@@ -62,7 +62,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: def473a2d9040caebe80913f4822daf4c5adf78a
+          ref: 710ebd05714b193fffbdedec0572eb1ec849f4c4
           persist-credentials: false
       - uses: ./.github/actions/install-node-dependencies
         with:
