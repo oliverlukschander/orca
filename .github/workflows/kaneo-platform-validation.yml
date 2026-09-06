@@ -15,7 +15,7 @@ jobs:
         run: git config --global core.autocrlf false
       - uses: actions/checkout@v6
         with:
-          ref: 710ebd05714b193fffbdedec0572eb1ec849f4c4
+          ref: 28944921a0a77a87df5ff98f848a519653b73bb5
           persist-credentials: false
       - uses: ./.github/actions/install-node-dependencies
         with:
@@ -57,7 +57,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: 710ebd05714b193fffbdedec0572eb1ec849f4c4
+          ref: 28944921a0a77a87df5ff98f848a519653b73bb5
           persist-credentials: false
       - uses: ./.github/actions/install-node-dependencies
         with:
