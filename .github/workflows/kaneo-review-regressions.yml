@@ -1,0 +1,34 @@
+name: Kaneo final review regressions
+on:
+  push:
+    branches: [ci/kaneo-review-regressions]
+permissions:
+  contents: read
+jobs:
+  regressions:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      ORCA_BACKGROUND_LAUNCH: '1'
+    steps:
+      - name: Preserve repository line endings
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v6
+        with:
+          ref: aa37537afa789683b2c6684befa992ede7b87499
+          persist-credentials: false
+      - uses: ./.github/actions/install-node-dependencies
+        with:
+          node-version: '24'
+          native-runtime: node
+          persist-native-cache: 'false'
+      - name: Focused review regressions
+        run: pnpm test kaneo cancellable-provider-requests jira-cancellable-requests worktrees-remote-runtime-create worktree-meta-persist folder-workspace-owner-routed-mutations repos-project-groups
+      - name: Lint
+        run: pnpm lint
+      - name: Typecheck
+        run: pnpm typecheck
