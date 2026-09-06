@@ -1,11 +1,11 @@
-name: Kaneo Windows LF validation
+name: Kaneo Windows rendered validation
 on:
   push:
     branches: [ci/kaneo-platform-validation]
 permissions:
   contents: read
 jobs:
-  windows-lf:
+  windows-rendered:
     runs-on: windows-latest
     timeout-minutes: 30
     env:
@@ -20,9 +20,19 @@ jobs:
       - uses: ./.github/actions/install-node-dependencies
         with:
           node-version: '24'
-          native-runtime: node
-      - name: Lint with LF checkout
-        run: pnpm lint
-      - name: Kaneo regression tests
+          native-runtime: electron
+          persist-native-cache: 'false'
+      - name: Build
+        run: pnpm build
+      - name: Rendered Kaneo checks
+        run: pnpm exec playwright test tests/e2e/kaneo-smart-url.spec.ts tests/e2e/kaneo-paired-runtime.spec.ts --config tests/playwright.config.ts --project electron-headless --workers=1 --reporter=list,html
+        env:
+          PLAYWRIGHT_HTML_OPEN: never
+      - uses: actions/upload-artifact@v4
         if: always()
-        run: pnpm test kaneo
+        with:
+          name: kaneo-windows-rendered
+          path: |
+            playwright-report
+            test-results
+          retention-days: 14
