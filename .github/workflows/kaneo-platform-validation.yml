@@ -5,21 +5,6 @@ on:
 permissions:
   contents: read
 jobs:
-  windows-baseline:
-    runs-on: windows-latest
-    timeout-minutes: 30
-    env:
-      ORCA_BACKGROUND_LAUNCH: '1'
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: b51bbf3fc613e65bff008e10b633f0903d3e9708
-          persist-credentials: false
-      - uses: ./.github/actions/install-node-dependencies
-        with:
-          node-version: '24'
-      - name: Unchanged upstream lint
-        run: pnpm lint
   linux-ssh:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -58,6 +43,7 @@ jobs:
           KbdInteractiveAuthentication no
           UsePAM yes
           StrictModes no
+          Subsystem sftp internal-sftp
           PidFile $RUNNER_TEMP/kaneo-sshd.pid
           EOF
           sudo /usr/sbin/sshd -f "$RUNNER_TEMP/kaneo-sshd.conf"
